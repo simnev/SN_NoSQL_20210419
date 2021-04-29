@@ -1,0 +1,144 @@
+1. /Suskaičiuoti:
+
+db.Darbuotojai.count()
+
+1.1. /kiek iš viso atskirai dirba moterų ir vyrų./
+
+db.Darbuotojai.find({"Lytis":"Moteris"}).count()
+
+db.Darbuotojai.find({"Lytis":"Vyras"}).count()
+
+1.2. /visas skirtingas pozicijas. Išrūšiuoti./
+
+db.Darbuotojai.distinct("Pozicijos pavadinimas").sort()
+
+2. /Surasti kiek darbuotojų dirba kiekviename padalinyje. Sugrupuoti pagal padaliniuose dirbančių darbuotojų skaičių mažėjimo tvarka./
+
+db.Darbuotojai.aggregate([
+{$group:{_id:"$Padalinys",count:{$sum:1}}
+}
+,{$sort:{count:-1}}
+])
+
+3. /Surasti kiek moterų dirba kiekviename padalinyje. Sugrupuoti pagal padaliniuose dirbančių moterų skaičių mažėjimo tvarka./
+
+db.Darbuotojai.aggregate([
+{$match:{Lytis:"Moteris"}}
+,{$group:{_id:"$Padalinys",count:{$sum:1}}
+}
+,{$sort:{count:-1}}
+])
+
+4. /Išrinkti pozicijas, kurių dydis mažesnis arba lygus 50. Rezultatus išrūšiuoti mažėjimo tvarka. Pateikti naudojant "pretty"./
+
+db.Darbuotojai.find({"Pozicijos dydis":{$lte:50}}).sort ({"Pozicijos dydis":-1}).pretty()
+
+5. /Surasti 5 darbuotojus su didžiausiomis algomis./
+
+db.Darbuotojai.find({}).sort({"Algos dydis":-1}).limit(5).pretty()
+
+5.1./Surasti 5 moteris darbuotojas su didžiausiomis algomis. Išrūšiuoti pagal amžių didėjimo tvarka./
+
+db.Darbuotojai.aggregate([
+{$match:{Lytis:"Moteris"}}
+,{$sort:{"Algos dydis":-1}},{$limit:5}
+]).pretty()
+
+6. /Surasti 5 vyrus darbuotojas su mažiausiomis algomis. Išrūšiuoti pagal amžių didėjimo tvarka. Praleisti pirmus 3 įrašus./
+
+db.Darbuotojai.aggregate([
+{$match:{Lytis:"Vyras"}}
+,{$sort:{"Algos dydis":1}}
+,{$limit:5},{$skip:3}
+]).pretty()
+
+6.1./Pasitikrinimui, kokie 5 vyrai darbuotojai su mažiausiomis algomis. Išrūšiuoti pagal amžių didėjimo tvarka./
+db.Darbuotojai.aggregate([
+{$match:{Lytis:"Vyras"}}
+,{$sort:{"Algos dydis":1}}
+,{$limit:5}
+]).pretty()
+
+7. /Įterpti naują darbuotoją./
+
+db.Darbuotojai.count()
+
+db.Darbuotojai.insert(
+{"Padalinys":1200, "Padalinio pavadinimas":"Savivaldybės administracija", 
+"Padalinio vadovo ID":504027, "Darbuotojo ID":509999, "Darbuotojo gimimo data":"2100-01-01", 
+"Lytis":"Vyras", "Vardas":"John", "Pavardė":"Annathon", "Pozicijos dydis":100, 
+"Pozicijos pavadinimas":"Patarėjas", "Pradžios data":"2021-04-12", "Pabaigos data":"2099-12-31", 
+"Algos dydis":560300, "Neatvykimas į darbą dėl ligos": 0}
+)
+
+db.Darbuotojai.count()
+db.Darbuotojai.find({"Darbuotojo ID":509999}).pretty()
+
+8. /Surasti ar yra kuris darbuotojas, kuriam trūksta "Amžius" lauko ir jo reikšmės./
+
+db.Darbuotojai.find({Amžius:{$exists:false}}).pretty()
+
+8.1. /Surasti darbuotoją su neteisinga gimimo data, didesne nei šiandiena./
+
+db.Darbuotojai.find(
+{"Darbuotojo gimimo data":{$gte:"2021-04-15"}}
+).pretty()
+
+8.2. /Suteikti laukui "Amžius" reikšmę "39", jeigu jis neegzistuoja./
+db.Darbuotojai.update(
+{"Amžius":{"$exists":false}}
+,{"$set":{"Amžius":39}}
+)
+
+8.3. /Pakeisti "Darbuotojo gimimo data" iš 2100-01-01 į 1982-01-01./
+db.Darbuotojai.update(
+{"Darbuotojo gimimo data":"2100-01-01"}
+,{$set:{"Darbuotojo gimimo data":"1982-01-01"}}
+)
+
+PASITIKRINIMUI:
+1. db.Darbuotojai.find({"Darbuotojo gimimo data":"2100-01-01"})
+
+2. db.Darbuotojai.find({"Darbuotojo gimimo data":"1982-01-01"}).pretty()
+
+9. /Pakeisti "Pozicijos pavadinimas" "Patarėjas" į "Konsultantas"./
+
+db.Darbuotojai.distinct("Pozicijos pavadinimas").sort()
+
+db.Darbuotojai.update(
+{"Pozicijos pavadinimas":"Patarėjas"}
+,{$set:{"Pozicijos pavadinimas":"Konsultantas"}}
+)
+
+PASITIKRINIMUI:
+db.Darbuotojai.distinct("Pozicijos pavadinimas").sort()
+
+10. /Surasti vidutinę algą ir neatvykimo į darbą dienų skaičių./
+
+db.Darbuotojai.aggregate([
+{$group:{"_id":null
+, avgAlga:{$avg:"$Algos dydis"}
+, avgNeatvykimas:{$avg:"$Neatvykimas į darbą dėl ligos"}}
+}
+])
+
+11. /Surasti darbuotojus, kurių alga didesnė arba lygi 500000 , neatvykimas į darbą dėl ligos mažesnis arba lygus 10 dienų, 
+pozicijos dydis lygus 100 ir amžius tarp 30-60 metų./
+
+db.Darbuotojai.find(
+{$and:[{
+"Algos dydis":{$gte:500000}} 
+,{"Neatvykimas į darbą dėl ligos":{$lte:10}
+} 
+,{"Pozicijos dydis":{$eq:100}
+} ,
+{"Amžius":{$in:[30,60]}
+}]}
+).pretty()
+
+12. /Surasti padalinius turinčius pavadinime "adminis"
+PASITIKRINIMUI:
+db.Darbuotojai.distinct("Padalinio pavadinimas").sort()
+
+db.Darbuotojai.find({"Padalinio pavadinimas":{$regex:/adminis/i}}).pretty()
+
